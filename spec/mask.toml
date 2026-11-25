@@ -1,0 +1,15 @@
+[span]
+min = 1
+max = 32
+default = 16
+
+[weight]
+min = 1
+max = 32
+default = 8
+
+[designer]
+iterations = 200
+seed = 20261125
+error_rate = 0.02
+events = 512
