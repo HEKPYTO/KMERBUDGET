@@ -1,0 +1,14 @@
+.{
+    .name = .kmerbudget,
+    .version = "0.0.0",
+    .fingerprint = 0x466dc80781832b79,
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
