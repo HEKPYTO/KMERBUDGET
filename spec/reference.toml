@@ -1,0 +1,7 @@
+paper = "arXiv:2603.25417v3"
+title = "Fast Iteration of Spaced k-mers"
+author = "Lucas Czech"
+fisk_commit = "b242e7b65d2f72af36e30037954f3724ff7a57f2"
+fisk_core_license = "MIT"
+fisk_external_license = "GPL-3.0-or-later"
+vendored_gpl = false

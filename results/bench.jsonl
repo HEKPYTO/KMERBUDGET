@@ -1,0 +1,5 @@
+{"host":"Apple M2","compiler":"0.17.1","mode":"fast","bytes":67108864}
+{"phases":"rolling_only","mb_per_second":1031.7,"windows":67108833}
+{"phases":"scan","span":16,"weight":8,"engine":"butterfly","ns_per_window":1.457,"mb_per_second":686.3,"windows":67108849,"checksum":2347}
+{"phases":"scan","span":24,"weight":12,"engine":"butterfly","ns_per_window":1.470,"mb_per_second":680.1,"windows":67108841,"checksum":10939990}
+{"phases":"scan","span":32,"weight":16,"engine":"butterfly","ns_per_window":1.440,"mb_per_second":694.4,"windows":67108833,"checksum":440703394}
