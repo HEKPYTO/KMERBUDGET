@@ -84,9 +84,27 @@ Count parity is byte-exact against pinned fisk `b242e7b65d2f72af36e30037954f3724
 [`results/parity.txt`](results/parity.txt); the harness is in
 [`tools/parity/README.md`](tools/parity/README.md).
 
+Host-labelled gate verdicts are committed in [`results/gate-arm64.json`](results/gate-arm64.json)
+(Apple M2, 566.5 MB/s/core) and [`results/gate-x86_64.json`](results/gate-x86_64.json) (AMD EPYC 9V45,
+PEXT, 1109.5 MB/s/core). Both PASS the 500 MB/s/core threshold.
+
 The paper reports 520-750 MB/s/core across Xeon, EPYC, Ryzen, and M1 for its own implementations.
 Its 3.4-4.2x and 3.2-9.5x comparisons are qualified; this project makes no general speedup claim
 against other tools.
+
+## Trust and maintenance
+
+- **Security response.** Report vulnerabilities privately through GitHub Security Advisories on this
+  repository. Private reporting and vulnerability alerts are enabled. The server has no authentication;
+  keep the default `127.0.0.1` bind unless the network is trusted.
+- **Dependencies.** Dependabot checks GitHub Actions weekly. Zig is pinned to 0.17.1 and upgraded only
+  with a full CI run and refreshed artifacts.
+- **Regression monitoring.** Every push and pull request runs tests on Ubuntu and macOS, the x86-64
+  benchmark gate, byte-exact parity, the no-JS UI check, and the container smoke test. Artifacts are kept
+  30 days; committed results are the durable record.
+- **Future work.** SIMD and multi-mask extraction, sensitivity on real mutations, and real-genome
+  throughput are not claimed in v0.1.0. They belong in later releases after the matched-throughput
+  baseline stays green.
 
 ## Development
 
