@@ -66,13 +66,18 @@ throughput, and the exact command to reproduce it. The server binds `127.0.0.1` 
 
 Kill gate: extraction of at least 500 MB/s/core on each recorded host.
 Numbers come from `zig build bench -Doptimize=ReleaseFast -- 64` (64 MiB, extraction path); the raw
-lines are committed in [`results/bench.jsonl`](results/bench.jsonl).
+lines are committed in [`results/bench.jsonl`](results/bench.jsonl) and
+[`results/bench-x86_64.jsonl`](results/bench-x86_64.jsonl).
 
-| Host | Compiler | Mode | Span | Weight | ns/window | MB/s/core |
+| Host | Compiler | Engine | Span | Weight | ns/window | MB/s/core |
 |---|---|---|---|---|---|---|
-| Apple M2 | Zig 0.17.1 | fast | 16 | 8 | 1.424 | 702.0 |
-| Apple M2 | Zig 0.17.1 | fast | 24 | 12 | 1.404 | 712.1 |
-| Apple M2 | Zig 0.17.1 | fast | 32 | 16 | 1.419 | **704.7** |
+| Apple M2 | Zig 0.17.1 | butterfly | 16 | 8 | 1.424 | 702.0 |
+| Apple M2 | Zig 0.17.1 | butterfly | 24 | 12 | 1.404 | 712.1 |
+| Apple M2 | Zig 0.17.1 | butterfly | 32 | 16 | 1.419 | 704.7 |
+| AMD EPYC 9V45 | Zig 0.17.1 | butterfly | 16 | 8 | 1.087 | 920.3 |
+| AMD EPYC 9V45 | Zig 0.17.1 | PEXT | 16 | 8 | 0.909 | **1099.5** |
+| AMD EPYC 9V45 | Zig 0.17.1 | PEXT | 24 | 12 | 0.912 | 1096.8 |
+| AMD EPYC 9V45 | Zig 0.17.1 | PEXT | 32 | 16 | 0.910 | 1098.4 |
 
 Count parity is byte-exact against pinned fisk `b242e7b65d2f72af36e30037954f3724ff7a57f2` on
 1 MiB, 8 MiB, and 64 MiB seeded corpora, plus a 1 MiB corpus with `N` bases. Checksums are committed in

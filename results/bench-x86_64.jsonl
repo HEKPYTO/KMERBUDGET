@@ -1,0 +1,8 @@
+{"host":"AMD EPYC 9V45 96-Core Processor","compiler":"0.17.1","mode":"fast","bytes":67108864}
+{"phases":"rolling_only","mb_per_second":1206.2,"windows":67108833}
+{"phases":"scan","span":16,"weight":8,"engine":"butterfly","ns_per_window":1.087,"mb_per_second":920.3,"windows":67108849,"checksum":2347}
+{"phases":"scan","span":16,"weight":8,"engine":"pext","ns_per_window":0.909,"mb_per_second":1099.5,"windows":67108849,"checksum":2347}
+{"phases":"scan","span":24,"weight":12,"engine":"butterfly","ns_per_window":1.088,"mb_per_second":919.3,"windows":67108841,"checksum":10939990}
+{"phases":"scan","span":24,"weight":12,"engine":"pext","ns_per_window":0.912,"mb_per_second":1096.8,"windows":67108841,"checksum":10939990}
+{"phases":"scan","span":32,"weight":16,"engine":"butterfly","ns_per_window":1.099,"mb_per_second":910.0,"windows":67108833,"checksum":440703394}
+{"phases":"scan","span":32,"weight":16,"engine":"pext","ns_per_window":0.910,"mb_per_second":1098.4,"windows":67108833,"checksum":440703394}
