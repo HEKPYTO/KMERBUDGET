@@ -24,7 +24,12 @@ jobs:
       - if: matrix.os == 'ubuntu-latest'
         name: Check markdown policy
         run: |
-          unexpected=$(git ls-files '*.md' | rg -v '(^|/)README\.md$')
+          unexpected=$(git ls-files '*.md' | while IFS= read -r file; do
+            case "$file" in
+              README.md|*/README.md) ;;
+              *) echo "$file" ;;
+            esac
+          done)
           if [ -n "$unexpected" ]; then
             echo "$unexpected"
             exit 1
