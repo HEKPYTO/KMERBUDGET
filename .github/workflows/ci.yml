@@ -24,6 +24,10 @@ jobs:
       - run: zig build test
       - run: zig build fmt
       - run: zig build bench -- 1
+      - if: matrix.os == 'ubuntu-latest'
+        run: zig build -Doptimize=ReleaseFast
+      - if: matrix.os == 'ubuntu-latest'
+        run: tools/check-ui.sh
 
   x86-bench:
     runs-on: ubuntu-latest
@@ -58,16 +62,6 @@ jobs:
           name: x86_64-parity
           path: results-ci/
           retention-days: 30
-
-  ui:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: mlugg/setup-zig@v2
-        with:
-          version: 0.17.1
-      - run: zig build -Doptimize=ReleaseFast
-      - run: tools/check-ui.sh
 
   container:
     runs-on: ubuntu-latest
