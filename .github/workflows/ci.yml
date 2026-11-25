@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -12,10 +13,87 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.17.1
       - run: zig build test
       - run: zig build fmt
       - run: zig build bench -- 1
+
+  x86-bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+      - run: zig build -Doptimize=ReleaseFast -Dcommit="${GITHUB_SHA}"
+      - run: mkdir -p results-ci
+      - run: zig build bench -Doptimize=ReleaseFast -- 64 | tee results-ci/bench.jsonl
+      - run: ./zig-out/bin/kmerbudget seed --mb 8 --n-rate 0 --out seed.fa
+      - run: ./zig-out/bin/kmerbudget scan seed.fa --mask 1100110011001101 --out counts.tsv --budget 500 | tee results-ci/gate.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-bench
+          path: results-ci/
+          retention-days: 30
+
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+      - run: zig build -Doptimize=ReleaseFast
+      - run: mkdir -p results-ci
+      - run: tools/parity/run.sh | tee results-ci/parity.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-parity
+          path: results-ci/
+          retention-days: 30
+
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+      - run: zig build -Doptimize=ReleaseFast
+      - run: tools/check-ui.sh
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -t kmerbudget:ci .
+      - run: docker run -d --name kmerbudget -p 18080:8080 kmerbudget:ci
+      - name: Smoke the container page and scan
+        run: |
+          for i in $(seq 1 50); do
+            curl -fsS http://127.0.0.1:18080/ -o page.html && break
+            sleep 0.2
+          done
+          case "$(cat page.html)" in
+            *"<form"*) ;;
+            *) echo "missing form"; exit 1 ;;
+          esac
+          case "$(cat page.html)" in
+            *"<script"*) echo "script tag"; exit 1 ;;
+            *) ;;
+          esac
+          curl -fsS -X POST http://127.0.0.1:18080/scan \
+            --data-urlencode 'fasta=>demo
+          ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT' \
+            --data 'mask=1011010101' --data 'budget=1' -o result.html
+          case "$(cat result.html)" in
+            *"MB/s/core"*) ;;
+            *) echo "missing throughput"; exit 1 ;;
+          esac
+      - if: always()
+        run: docker logs kmerbudget
+      - if: always()
+        run: docker rm -f kmerbudget
