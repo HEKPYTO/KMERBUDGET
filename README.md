@@ -1,21 +1,28 @@
-# kmerbudget
+# KmerBudget
 
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![zig](https://img.shields.io/badge/zig-0.17.1-orange)
 
 
-Measured spaced-k-mer extraction for the machine you actually run. Input is a FASTA file and a spaced
+Measured spaced k-mer extraction for the machine you actually run. Input is a FASTA file and a spaced
 mask. Output is a throughput measurement, canonical k-mer counts, and a reproduction command that names
 host, compiler, build mode, input size, and the pinned reference.
 
-The extraction core follows the bit-parallel algorithm from *Fast Iteration of Spaced k-mers*
-(arXiv:2603.25417v3, MIT implementation at `lczech/fisk`). It packs bases two bits per symbol, rolls a
-span-sized window, and compacts selected positions with BMI2 `PEXT` on supporting x86-64 hosts or a
-six-stage butterfly network that also vectorizes four windows at a time. The UI is server-rendered HTML
-with no JavaScript assets.
+**Status: v0.1.0.** Extractor, designer, CLI, and no-JS UI are implemented. Every throughput and parity
+claim below is reproducible from committed artifacts.
+
+Product direction follows:
+
+> Lucas Czech, *Fast Iteration of Spaced k-mers*,
+> arXiv:2603.25417v3, 26 March 2026.
+> https://arxiv.org/abs/2603.25417
+
+Independent work. Not affiliated with or endorsed by the author.
 
 ## Features
 
+- BMI2 `PEXT` on x86-64 and a six-stage butterfly fallback elsewhere, including four-window vector
+  compaction.
 - Span up to 32, any nonzero mask weight, mask bit order documented by tests.
 - Invalid bases only invalidate a window when the mask selects that position, matching the reference
   implementation; skipped positions never corrupt or drop a spaced k-mer.
