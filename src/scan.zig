@@ -124,3 +124,42 @@ test "scanner vector path matches scalar across engines" {
         try std.testing.expectEqualSlices(u64, expected.items[0..expected.len], out.items[0..out.len]);
     }
 }
+
+const FuzzSink = struct {
+    items: std.ArrayList(u64) = .empty,
+
+    pub fn emit(self: *FuzzSink, kmer: u64) !void {
+        try self.items.append(std.testing.allocator, kmer);
+    }
+};
+
+fn fuzzScanner(_: void, smith: *std.testing.Smith) !void {
+    var buffer: [128]u8 = undefined;
+    const length = smith.slice(&buffer);
+    for (buffer[0..length]) |*base| base.* = "ACGTN"[base.* % 5];
+
+    const span = smith.valueRangeAtMost(u16, 1, 32);
+    const span_bits: u64 = (@as(u64, 1) << @intCast(span)) - 1;
+    var bits = smith.value(u64) & span_bits;
+    if (bits == 0) bits = 1;
+    const mask = extract.Mask{ .span = span, .weight = @intCast(@popCount(bits)), .bits = bits };
+
+    var got: FuzzSink = .{};
+    defer got.items.deinit(std.testing.allocator);
+    try Scanner.init(mask).scan(buffer[0..length], &got);
+
+    var expected: FuzzSink = .{};
+    defer expected.items.deinit(std.testing.allocator);
+    var rolling = pack.Rolling.init(span);
+    for (buffer[0..length], 0..) |base, index| {
+        rolling.push(pack.encode(base));
+        if (index + 1 >= span and rolling.valid(mask.bits)) {
+            try expected.emit(extract.naive(rolling.value, mask));
+        }
+    }
+    try std.testing.expectEqualSlices(u64, expected.items.items, got.items.items);
+}
+
+test "fuzz scanner matches naive enumeration" {
+    try std.testing.fuzz({}, fuzzScanner, .{});
+}

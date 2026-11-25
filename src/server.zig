@@ -8,9 +8,11 @@ const canon = @import("canon.zig");
 const reference = @import("reference.zig");
 const report = @import("report.zig");
 
-const max_body: usize = 16 << 20;
-const max_bases: usize = 8 << 20;
+const max_body: usize = 8 << 20;
+const max_bases: usize = 2 << 20;
 const max_rows: usize = 500;
+const max_connections: usize = 4;
+const io_timeout_seconds: i64 = 10;
 
 const TimedSink = struct {
     checksum: u64 = 0,
@@ -67,7 +69,7 @@ fn formPage(writer: anytype) !void {
     try writer.writeAll(
         \\<h2>Measure a mask</h2>
         \\<form method="post" action="/scan">
-        \\<label>FASTA (max 8 MB) <textarea name="fasta" required placeholder=">seq&#10;ACGT..."></textarea></label>
+        \\<label>FASTA (max 2 MB) <textarea name="fasta" required placeholder=">seq&#10;ACGT..."></textarea></label>
         \\<label>Mask <input name="mask" required pattern="[01]{1,32}" placeholder="1100110011001100"></label>
         \\<label>Speed budget, MB/s/core (optional) <input name="budget" type="number" min="1" step="any"></label>
         \\<button type="submit">Measure</button>
@@ -75,7 +77,7 @@ fn formPage(writer: anytype) !void {
         \\<h2>Design a mask</h2>
         \\<p class="muted">Deterministic hill-climb against planted substitutions and indels. The score is a detection proxy, not a sensitivity guarantee.</p>
         \\<form method="post" action="/design">
-        \\<label>FASTA (max 8 MB) <textarea name="fasta" required placeholder=">seq&#10;ACGT..."></textarea></label>
+        \\<label>FASTA (max 2 MB) <textarea name="fasta" required placeholder=">seq&#10;ACGT..."></textarea></label>
         \\<label>Span <input name="span" type="number" min="1" max="32" value="16" required></label>
         \\<label>Weight <input name="weight" type="number" min="1" max="32" value="8" required></label>
         \\<label>Error rate <input name="error" type="number" min="0.0001" max="1" step="any" value="0.02" required></label>
@@ -226,7 +228,7 @@ fn scanForm(
         return;
     };
     if (fasta_text.len > max_bases) {
-        try errorPage(out, "FASTA exceeds 8 MB of bases.");
+        try errorPage(out, "FASTA exceeds 2 MB of bases.");
         return;
     }
     const mask_text = form.mask orelse {
@@ -251,7 +253,7 @@ fn scanForm(
         }
     }
     var corpus = fasta.Fasta.parse(allocator, fasta_text, max_bases) catch {
-        try errorPage(out, "FASTA is empty or exceeds 8 MB of bases.");
+        try errorPage(out, "FASTA is empty or exceeds 2 MB of bases.");
         return;
     };
     defer corpus.deinit();
@@ -340,7 +342,7 @@ fn designForm(
         return;
     };
     if (fasta_text.len > max_bases) {
-        try errorPage(out, "FASTA exceeds 8 MB of bases.");
+        try errorPage(out, "FASTA exceeds 2 MB of bases.");
         return;
     }
     const span = std.fmt.parseInt(u16, form.span orelse "16", 10) catch {
@@ -369,7 +371,7 @@ fn designForm(
         }
     }
     var corpus = fasta.Fasta.parse(allocator, fasta_text, max_bases) catch {
-        try errorPage(out, "FASTA is empty or exceeds 8 MB of bases.");
+        try errorPage(out, "FASTA is empty or exceeds 2 MB of bases.");
         return;
     };
     defer corpus.deinit();
@@ -402,6 +404,7 @@ fn designForm(
 }
 
 fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
+    setTimeouts(stream);
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -445,21 +448,48 @@ fn handleConnection(io: std.Io, stream: std.Io.net.Stream) !void {
     try request.respond(page.writer.buffered(), .{ .status = status, .keep_alive = false, .extra_headers = htmlHeaders });
 }
 
-pub fn serve(io: std.Io, port: u16) !void {
-    const address = try std.Io.net.IpAddress.parse("127.0.0.1", port);
+fn setTimeouts(stream: std.Io.net.Stream) void {
+    if (builtin.os.tag == .windows) return;
+    const timeout: std.c.timeval = .{ .sec = io_timeout_seconds, .usec = 0 };
+    const bytes = std.mem.asBytes(&timeout);
+    std.posix.setsockopt(stream.socket.handle, std.posix.SOL.SOCKET, std.posix.SO.RCVTIMEO, bytes) catch {};
+    std.posix.setsockopt(stream.socket.handle, std.posix.SOL.SOCKET, std.posix.SO.SNDTIMEO, bytes) catch {};
+}
+
+fn worker(io: std.Io, stream: std.Io.net.Stream, semaphore: *std.Io.Semaphore) void {
+    defer semaphore.post(io);
+    handleConnection(io, stream) catch {};
+    stream.close(io);
+}
+
+pub fn serve(io: std.Io, host: []const u8, port: u16) !void {
+    const address = try std.Io.net.IpAddress.parse(host, port);
     var server = try address.listen(io, .{ .reuse_address = true });
     defer server.deinit(io);
     var err_buffer: [512]u8 = undefined;
     var err_writer: std.Io.File.Writer = .init(.stderr(), io, &err_buffer);
-    try err_writer.interface.print("kmerbudget serving on http://127.0.0.1:{d}\n", .{port});
+    try err_writer.interface.print("kmerbudget serving on http://{s}:{d} (max {d} concurrent)\n", .{ host, port, max_connections });
     try err_writer.interface.flush();
+    var semaphore: std.Io.Semaphore = .{ .permits = max_connections };
     while (true) {
         var stream = server.accept(io) catch continue;
-        handleConnection(io, stream) catch {};
-        stream.close(io);
+        semaphore.wait(io) catch {
+            stream.close(io);
+            continue;
+        };
+        const thread = std.Thread.spawn(.{}, worker, .{ io, stream, &semaphore }) catch {
+            semaphore.post(io);
+            stream.close(io);
+            continue;
+        };
+        thread.detach();
     }
 }
 
 const htmlHeaders = &[_]std.http.Header{
     .{ .name = "content-type", .value = "text/html; charset=utf-8" },
+    .{ .name = "cache-control", .value = "no-store" },
+    .{ .name = "x-content-type-options", .value = "nosniff" },
+    .{ .name = "referrer-policy", .value = "no-referrer" },
+    .{ .name = "content-security-policy", .value = "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" },
 };
