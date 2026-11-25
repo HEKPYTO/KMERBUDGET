@@ -37,8 +37,12 @@ fn usage(writer: anytype) !void {
         \\  --out     TSV path for kmer and count columns
         \\  --budget  optional MB/s/core threshold for a PASS/FAIL verdict
         \\
-        \\kmerbudget serve [--port <n>]
-        \\  Serves the no-JS measurement page on 127.0.0.1.
+        \\kmerbudget serve [--host <ip>] [--port <n>]
+        \\  Serves the no-JS measurement page. Defaults to 127.0.0.1:8080.
+        \\  --host 0.0.0.0 exposes the page to the network; there is no authentication.
+        \\
+        \\kmerbudget version
+        \\  Prints version, commit, compiler, target, and build mode as JSON.
         \\
         \\kmerbudget seed [--mb n] [--seed n] [--n-rate r] --out <fasta>
         \\  Writes a deterministic splitmix64 corpus.
@@ -316,12 +320,36 @@ fn run(init: std.process.Init, args: []const []const u8) !void {
     if (std.mem.eql(u8, command, "seed")) return seedCommand(init, args[2..]);
     if (std.mem.eql(u8, command, "serve")) {
         var port: u16 = 8080;
-        if (args.len > 3 and std.mem.eql(u8, args[2], "--port")) {
-            port = try std.fmt.parseInt(u16, args[3], 10);
-        } else if (args.len > 2) {
-            return error.InvalidServeArgs;
+        var bind_host: []const u8 = "127.0.0.1";
+        var index: usize = 2;
+        while (index < args.len) : (index += 1) {
+            if (std.mem.eql(u8, args[index], "--port")) {
+                index += 1;
+                if (index >= args.len) return error.MissingValue;
+                port = try std.fmt.parseInt(u16, args[index], 10);
+            } else if (std.mem.eql(u8, args[index], "--host")) {
+                index += 1;
+                if (index >= args.len) return error.MissingValue;
+                bind_host = args[index];
+            } else {
+                return error.InvalidServeArgs;
+            }
         }
-        return @import("server.zig").serve(init.io, port);
+        return @import("server.zig").serve(init.io, bind_host, port);
+    }
+    if (std.mem.eql(u8, command, "version")) {
+        var buffer: [1024]u8 = undefined;
+        var out: std.Io.File.Writer = .init(.stdout(), init.io, &buffer);
+        try out.interface.print("{{\"version\":\"{s}\",\"commit\":\"{s}\",\"zig\":\"{s}\",\"arch\":\"{s}\",\"os\":\"{s}\",\"mode\":\"{s}\"}}\n", .{
+            reference.project_version,
+            build_options.commit,
+            builtin.zig_version_string,
+            @tagName(builtin.cpu.arch),
+            @tagName(builtin.os.tag),
+            @tagName(builtin.mode),
+        });
+        try out.interface.flush();
+        return;
     }
     if (std.mem.eql(u8, command, "help") or std.mem.eql(u8, command, "--help") or std.mem.eql(u8, command, "-h")) {
         var buffer: [4096]u8 = undefined;

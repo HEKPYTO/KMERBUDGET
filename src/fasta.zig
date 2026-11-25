@@ -72,3 +72,26 @@ test "rejects oversize and empty input" {
     try std.testing.expectError(error.CorpusTooLarge, Fasta.parse(std.testing.allocator, "ACGT", 3));
     try std.testing.expectError(error.EmptyFasta, Fasta.parse(std.testing.allocator, ">only header\n", 3));
 }
+
+fn fuzzParse(_: void, smith: *std.testing.Smith) !void {
+    var buffer: [4096]u8 = undefined;
+    const length = smith.slice(&buffer);
+    var parsed = Fasta.parse(std.testing.allocator, buffer[0..length], 1 << 20) catch |err| switch (err) {
+        error.EmptyFasta, error.CorpusTooLarge => return,
+        else => return err,
+    };
+    defer parsed.deinit();
+    var total: usize = 0;
+    for (parsed.records) |record| {
+        for (record) |base| {
+            try std.testing.expect(!std.ascii.isWhitespace(base));
+            try std.testing.expect(base != '>');
+        }
+        total += record.len;
+    }
+    try std.testing.expectEqual(parsed.bases.len, total);
+}
+
+test "fuzz fasta parser invariants" {
+    try std.testing.fuzz({}, fuzzParse, .{});
+}

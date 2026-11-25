@@ -174,3 +174,21 @@ test "butterfly matches naive at span 32" {
         }
     }
 }
+
+fn fuzzMask(_: void, smith: *std.testing.Smith) !void {
+    var buffer: [64]u8 = undefined;
+    const length = smith.slice(&buffer);
+    if (length == 0 or length > 32) return;
+    const mask = Mask.parse(buffer[0..length]) catch return;
+    try std.testing.expectEqual(@as(u16, @intCast(length)), mask.span);
+    try std.testing.expect(mask.weight > 0);
+    const span_bits: u64 = (@as(u64, 1) << @intCast(mask.span)) - 1;
+    try std.testing.expectEqual(@as(u64, 0), mask.bits & ~span_bits);
+    try std.testing.expectEqual(@as(u32, 2 * mask.weight), @popCount(mask.expanded()));
+    const kmer = smith.value(u64);
+    try std.testing.expectEqual(naive(kmer, mask), Butterfly.init(mask).apply(kmer));
+}
+
+test "fuzz mask parsing and extraction" {
+    try std.testing.fuzz({}, fuzzMask, .{});
+}

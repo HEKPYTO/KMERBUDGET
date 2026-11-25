@@ -41,3 +41,16 @@ test "decode prints bases in sequence order" {
     decode(0b00_01_10_11, 4, &buf);
     try std.testing.expectEqualStrings("ACGT", &buf);
 }
+
+fn fuzzReverseComplement(_: void, smith: *std.testing.Smith) !void {
+    const kmer = smith.value(u64);
+    const weight = smith.valueRangeAtMost(u16, 1, 32);
+    const back = reverseComplement(reverseComplement(kmer, weight), weight);
+    try std.testing.expectEqual(kmer, back);
+    const value = canonical(kmer, weight);
+    try std.testing.expect(value == kmer or value == reverseComplement(kmer, weight));
+}
+
+test "fuzz reverse complement is an involution" {
+    try std.testing.fuzz({}, fuzzReverseComplement, .{});
+}
