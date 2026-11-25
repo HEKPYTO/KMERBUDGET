@@ -60,14 +60,14 @@ printf '>demo\nACGTACGTACGTACGTACGTACGTACGTACGT\n' > demo.fa
 ```
 
 The scan command prints one JSON line. The design command prints the chosen mask, proxy, measured
-throughput, and the exact command to reproduce it. The server binds `127.0.0.1` by default; `--host 0.0.0.0` exposes the unauthenticated page to the network.
+throughput, and the exact command to reproduce it. The server binds `127.0.0.1` by default; `--host
+0.0.0.0` exposes the unauthenticated page to the network.
 
 ## Measured results
 
-Kill gate: extraction of at least 500 MB/s/core on each recorded host.
-Numbers come from `zig build bench -Doptimize=ReleaseFast -- 64` (64 MiB, extraction path); the raw
-lines are committed in [`results/bench.jsonl`](results/bench.jsonl) and
-[`results/bench-x86_64.jsonl`](results/bench-x86_64.jsonl).
+Kill gate: extraction of at least 500 MB/s/core on each recorded host. Numbers come from
+`zig build bench -Doptimize=ReleaseFast -- 64` (64 MiB, extraction path); the raw lines are committed in
+[`results/bench.jsonl`](results/bench.jsonl) and [`results/bench-x86_64.jsonl`](results/bench-x86_64.jsonl).
 
 | Host | Compiler | Engine | Span | Weight | ns/window | MB/s/core |
 |---|---|---|---|---|---|---|

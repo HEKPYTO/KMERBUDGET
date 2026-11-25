@@ -22,5 +22,5 @@ existing checkout with an `include/` directory.
 The corpus generator is `kmerbudget seed`; it is deterministic for a fixed seed. The parity mask is
 `1100110011001101`; fisk requires the first and last mask positions to be set.
 
-Recorded results live in `results/parity.txt`. CI runs the harness on Ubuntu.
-Artifacts contain the recorded output.
+Recorded results live in `results/parity.txt` and `results/parity-x86_64.txt`. CI runs the harness on
+Ubuntu on every push and pull request.

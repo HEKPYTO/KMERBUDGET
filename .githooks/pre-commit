@@ -1,3 +1,13 @@
 #!/bin/sh
-set -e
-zig fmt --check src build.zig build.zig.zon
+set -eu
+
+files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.zig' '*.zon')
+[ -n "$files" ] || exit 0
+
+if ! command -v zig >/dev/null 2>&1; then
+    echo "pre-commit: zig is not on PATH; install Zig 0.17.1 or commit with --no-verify." >&2
+    exit 1
+fi
+
+# shellcheck disable=SC2086
+zig fmt --check $files
